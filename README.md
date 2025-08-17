@@ -5,7 +5,7 @@
 최종 산출물은 **K7(7라벨) MobileNetV3**의 **브라우저 JS API**와, **결과 시각화 노트북**이다.
 
 - 원천 데이터: AI Hub 한국인 감정인식 복합 영상 데이터  
-  링크: https://aihub.or.kr/aihubdata/data/view.do?pageIndex=3&currMenu=115&topMenu=100&srchOptnCnd=OPTNCND001&searchKeyword=%ED%91%9C%EC%A0%95&srchDetailCnd=DETAILCND001&srchOrder=ORDER001&srchPagePer=20&aihubDataSe=data&dataSetSn=82
+  링크: [한국인 감정인식 복합 영상 데이터 (AI Hub)](https://aihub.or.kr/aihubdata/data/view.do?dataSetSn=82)
 
 ---
 
