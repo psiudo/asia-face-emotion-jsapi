@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>K7 MobileNet JS API — Smoke Test (KAIST 라벨)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 24px; }
+    h1 { font-size: 20px; margin: 0 0 16px; }
+    .row { display: flex; gap: 24px; flex-wrap: wrap; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+    .wide { flex: 1 1 520px; }
+    .narrow { width: 360px; }
+    .muted { color:#666; font-size: 12px; }
+    #status { font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #eee; padding: 8px 6px; text-align: left; }
+    th { background: #fafafa; }
+    .prob { text-align: right; font-variant-numeric: tabular-nums; }
+    .ok { color: #0a7c2f; }
+    .err { color: #b00020; }
+    button[disabled] { opacity: .5; cursor: not-allowed; }
+    canvas { background: #111; display:block; max-width:100%; height:auto; }
+  </style>
+
+  <!-- onnxruntime-web ESM import -->
+  <script type="importmap">
+  {
+    "imports": {
+      "onnxruntime-web": "/node_modules/onnxruntime-web/dist/ort.min.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <h1>K7 MobileNet JS API — Smoke Test (KAIST 라벨)</h1>
+
+  <div class="row">
+    <div class="card wide">
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+        <span class="muted">상태:</span>
+        <span id="status">loading…</span>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+        <input id="file" type="file" accept="image/*" />
+        <button id="btnRun" disabled>Run Inference</button>
+        <span class="muted">업로드 이미지는 중앙 정사각형으로 잘라서 추론</span>
+      </div>
+
+      <canvas id="preview" width="640" height="480"></canvas>
+    </div>
+
+    <div class="card narrow">
+      <div class="muted" style="margin-bottom:8px;">확률 (내림차순)</div>
+      <table>
+        <thead>
+          <tr><th>라벨</th><th class="prob">확률</th></tr>
+        </thead>
+        <tbody id="tbl"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    // 캐시 무력화용 쿼리 파라미터 포함
+    import { EmotionAPI } from '/models/mobilenetv3_classifier/js_api/onnx_emotion_api.js?v=kor5';
+
+    // ===== 경로 상수 =====
+    const MODEL_URL   = '/models/mobilenetv3_classifier/runs/finetune_K7_160/k7_mnv3s_160.onnx';
+    const CLASSES_URL = '/models/mobilenetv3_classifier/runs/finetune_K7_160/classes.json'; // 한국어 7라벨
+    const WASM_PATH   = '/node_modules/onnxruntime-web/dist/'; // 끝 슬래시 포함
+
+    // ===== DOM =====
+    const $status = document.getElementById('status');
+    const $file   = document.getElementById('file');
+    const $btnRun = document.getElementById('btnRun');
+    const $tbl    = document.getElementById('tbl');
+    const $cv     = document.getElementById('preview');
+    const ctx     = $cv.getContext('2d');
+
+    // ===== API 초기화 =====
+    let api = null;
+    try {
+      api = new EmotionAPI({
+        modelUrl: MODEL_URL,
+        classesUrl: CLASSES_URL,   // 한글 7라벨 JSON
+        provider: 'wasm',
+        wasmBasePath: WASM_PATH    // dist/ 경로, 끝 슬래시 필수
+      });
+      await api.init();
+      $status.textContent = 'init ok';
+      $status.className = 'ok';
+      // 확인용
+      console.log('[keys]', api.outputKeys);
+      console.log('[remap]', api.remap);
+      window.api = api;
+    } catch (e) {
+      console.error(e);
+      $status.textContent = 'init err';
+      $status.className = 'err';
+    }
+
+    // ===== 이미지 로딩/미리보기 =====
+    let imgEl = null;   // 원본 이미지
+    let cropBox = null; // {x,y,width,height} in image pixels
+
+    $file.addEventListener('change', () => {
+      const f = $file.files && $file.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          imgEl = img;
+          drawContain(img, $cv, ctx);
+
+          // 중앙 정사각형 박스(원본 해상도 기준)
+          const iw = img.naturalWidth  || img.width;
+          const ih = img.naturalHeight || img.height;
+          const side = Math.min(iw, ih);
+          const x = Math.floor((iw - side) / 2);
+          const y = Math.floor((ih - side) / 2);
+          cropBox = { x, y, width: side, height: side };
+
+          $btnRun.disabled = !api;
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(f);
+    });
+
+    function drawContain(img, canvas, ctx) {
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0,0,W,H);
+      const iw = img.naturalWidth  || img.width;
+      const ih = img.naturalHeight || img.height;
+      const s = Math.min(W/iw, H/ih);
+      const dw = Math.floor(iw * s);
+      const dh = Math.floor(ih * s);
+      const dx = Math.floor((W - dw)/2);
+      const dy = Math.floor((H - dh)/2);
+      ctx.drawImage(img, dx, dy, dw, dh);
+      // 중앙 정사각형 안내선
+      const side = Math.min(dw, dh);
+      const sx = Math.floor((W - side)/2);
+      const sy = Math.floor((H - side)/2);
+      ctx.strokeStyle = 'rgba(255,255,255,.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx, sy, side, side);
+    }
+
+    // ===== 추론 =====
+    $btnRun.addEventListener('click', async () => {
+      if (!api || !imgEl) return;
+      setStatus('running…', false);
+      try {
+        const scores = await api.predictFromImage(imgEl, cropBox);
+        renderTable(scores);
+        setStatus('done', true);
+      } catch (e) {
+        console.error(e);
+        setStatus('error', false, true);
+      }
+    });
+
+    function setStatus(text, ok, isErr=false) {
+      $status.textContent = text;
+      $status.className = ok ? 'ok' : (isErr ? 'err' : '');
+    }
+
+    function renderTable(scores) {
+      const rows = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+      $tbl.innerHTML = rows.map(([k,v]) =>
+        `<tr><td>${escapeHtml(k)}</td><td class="prob">${v.toFixed(6)}</td></tr>`
+      ).join('');
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+  </script>
+</body>
+</html>

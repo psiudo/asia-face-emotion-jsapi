@@ -1,0 +1,31 @@
+# [FILEPATH] .gitignore
+
+# 1) 용량 큰 원천/산출물 제외
+data_raw/
+logs/
+node_modules/
+models/faceapi_baseline/node_modules/
+
+# 2) data_shared는 기본 제외하되, CSV 두 디렉터리만 포함
+data_shared/*
+!data_shared/cropped_faces_csv/
+!data_shared/splits_csv/
+
+# 두 디렉터리 내부도 기본 제외 → CSV만 허용
+data_shared/cropped_faces_csv/*
+!data_shared/cropped_faces_csv/*.csv
+data_shared/splits_csv/*
+!data_shared/splits_csv/*.csv
+
+# 3) 기타 잡파일
+**/__pycache__/
+*.pyc
+*.pyo
+*.log
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
+
+# 4) (선택) 학습 체크포인트는 커밋 안 하고, ONNX만 보관하려면 아래 주석 해제
+# models/mobilenetv3_classifier/runs/*/*.pt

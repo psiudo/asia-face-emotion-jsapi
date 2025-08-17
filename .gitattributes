@@ -1,0 +1,4 @@
+# [FILEPATH] .gitattributes
+# ONNX / PT는 LFS로 (PT는 필요 시만 추적; 위 .gitignore에서 제외하면 안 올라감)
+*.onnx filter=lfs diff=lfs merge=lfs -text
+*.pt   filter=lfs diff=lfs merge=lfs -text
