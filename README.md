@@ -1,6 +1,7 @@
 <!-- [FILEPATH] README.md -->
 # Asia_Face_Emotion_Improve — FaceAPI Baseline vs MobileNetV3 (K7)
 사례: GitHub issue #469 (face-api.js) – 데이터 편향 보고 사례 [링크](https://github.com/justadudewhohacks/face-api.js/issues/469)
+
 face-api에서는 위와 같은 깃허브 이슈가 있을 정도로 동양인 인식률이 낮다.
 위와 같은 문제의식에서 시작하여 본 연구는 face-api에서 동양인 표정 인식률 그리고 이를 대체할 새로운 api를 제안한다.
 
